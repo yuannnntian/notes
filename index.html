@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Beanfield Toolbox v16.9.1</title>
+    <title>Beanfield Toolbox v17.0</title>
     <style>
         :root { --primary: #007aff; --bg: #f2f2f7; --card: #ffffff; --text: #1c1c1e; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; color: var(--text); -webkit-user-select: none; }
@@ -72,15 +72,25 @@
 
     <div class="card">
         <h3>Equipment</h3>
-        <label>Zhone Info</label>
+        <label>Primary Device Type</label>
+        <div class="toggle-group" id="bf_primary_type" style="margin-bottom:15px;">
+            <div class="toggle-btn active" onclick="setPrimaryType('Zhone')">Zhone</div>
+            <div class="toggle-btn" onclick="setPrimaryType('ONT')">ONT</div>
+        </div>
+
+        <label id="lbl_z_loc">Zhone Location</label>
         <input type="text" id="bf_z_loc" placeholder="Zhone Location" style="margin-bottom:5px;">
+        <label id="lbl_z_mac">Zhone MAC</label>
         <input type="text" id="bf_z_mac" placeholder="Zhone MAC" style="margin-bottom:5px;">
+        <label id="lbl_z_mod">Zhone Model</label>
         <input type="text" id="bf_z_mod" placeholder="Zhone Model" style="margin-bottom:15px;">
+
+        <hr style="border:0; border-top:1px solid #f2f2f7; margin-bottom:15px;">
 
         <label>Secondary Device Type</label>
         <div class="toggle-group" id="bf_router_type" style="margin-bottom:15px;">
             <div class="toggle-btn active" onclick="setRouterType('Airties')">Airties</div>
-            <div class="toggle-btn" onclick="setToggle('bf_router_type', 'Beacon'); setRouterType('Beacon')">Beacon</div>
+            <div class="toggle-btn" onclick="setRouterType('Beacon')">Beacon</div>
         </div>
 
         <label id="lbl_router_loc">Airties Location</label>
@@ -173,10 +183,32 @@ const inventory = {
 };
 
 let cart = {};
-let toggles = { 'bf_router_type': 'Airties', 'bf_tests_done': 'Yes', 'bf_closet': 'N/A', 'bf_charge': 'No' };
+let toggles = { 'bf_primary_type': 'Zhone', 'bf_router_type': 'Airties', 'bf_tests_done': 'Yes', 'bf_closet': 'N/A', 'bf_charge': 'No' };
 let tags = { 'bf_tags': [] };
 
 window.onload = () => { render(); };
+
+function setPrimaryType(type) {
+    toggles['bf_primary_type'] = type;
+    document.getElementById('bf_primary_type').querySelectorAll('.toggle-btn').forEach(b => b.classList.toggle('active', b.innerText === type));
+    
+    // 更新文本标签
+    document.getElementById('lbl_z_loc').innerText = type + " Location";
+    document.getElementById('lbl_z_mac').innerText = type + " MAC";
+    document.getElementById('lbl_z_mod').innerText = type + " Model";
+    
+    // 更新输入框 Placeholder
+    document.getElementById('bf_z_loc').placeholder = type + " Location";
+    document.getElementById('bf_z_mac').placeholder = type + " MAC";
+    document.getElementById('bf_z_mod').placeholder = type + " Model";
+
+    // 自动填充建议
+    if(type === 'ONT') {
+        document.getElementById('bf_z_mod').value = "XS-010x";
+    } else {
+        document.getElementById('bf_z_mod').value = "";
+    }
+}
 
 function setRouterType(type) {
     toggles['bf_router_type'] = type;
@@ -220,15 +252,13 @@ function add(id, n, d) {
     cart[k].q += d;
     if(cart[k].q <= 0) delete cart[k];
     
-    // --- 智能填充逻辑 ---
-    const zModInput = document.getElementById('bf_z_mod');
-    if (cart[k] && cart[k].q > 0) {
-        if (id === "1001199") {
-            zModInput.value = "2424A1";
-        } else if (id === "1002327") {
-            zModInput.value = "2424gn";
-        } else if (id === "1002324") {
-            zModInput.value = "5222xg";
+    // --- 智能填充逻辑 (仅当模式为 Zhone 时生效) ---
+    if (toggles['bf_primary_type'] === 'Zhone') {
+        const zModInput = document.getElementById('bf_z_mod');
+        if (cart[k] && cart[k].q > 0) {
+            if (id === "1001199") zModInput.value = "2424A1";
+            else if (id === "1002327") zModInput.value = "2424gn";
+            else if (id === "1002324") zModInput.value = "5222xg";
         }
     }
     
@@ -270,13 +300,17 @@ function doCopy() {
     if(document.getElementById('picker').classList.contains('active')) {
         copyToClipboard(mats || "No items selected");
     } else {
+        const pType = toggles['bf_primary_type'];
         const rType = toggles['bf_router_type'];
         let r = `Inside Tech: ${getV('bf_in')}\nOutside Tech: ${getV('bf_out')}\n\n`;
         r += `Tests completed: ${getT('bf_tests_done')}\nRuby: ${getV('bf_ruby')}\nExfo: ${getV('bf_exfo')}\nLight meter: ${getV('bf_light')}\nWiFi: ${getV('bf_wifi')}\n\n`;
-        r += `Zhone Location: ${getV('bf_z_loc')}\nZhone MAC: ${getV('bf_z_mac')}\nZhone Model: ${getV('bf_z_mod')}\n\n`;
+        
+        // 动态生成的标题
+        r += `${pType} Location: ${getV('bf_z_loc')}\n${pType} MAC: ${getV('bf_z_mac')}\n${pType} Model: ${getV('bf_z_mod')}\n\n`;
+        
         r += `${rType} Location: ${getV('bf_r_loc')}\n${rType}-MAC: ${getV('bf_r_mac')}\n${rType} Model: ${getV('bf_r_mod')}\n\n`;
         r += `If the ${rType} was left in the closet, was the customer advised? ${getT('bf_closet')}\n\n`;
-        r += `${getV('bf_lines')} lines terminated, fluked and plugged into the Zhone\n`;
+        r += `${getV('bf_lines')} lines terminated, fluked and plugged into the ${pType}\n`;
         r += tags['bf_tags'].map(t => "        " + t + ": 1").join('\n') + "\n\n";
         
         r += `Was the customer notified of $100 charge for a return visit? ${getT('bf_charge')}\n\n`;
